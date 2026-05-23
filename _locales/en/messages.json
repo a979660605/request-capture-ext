@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "HTTP Request Capture",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "Capture, inspect, map, and export browser HTTP requests with Postman Collection support.",
+    "description": "Extension description"
+  }
+}

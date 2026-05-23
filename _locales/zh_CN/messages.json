@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "HTTP Request Capture",
+    "description": "Extension name"
+  },
+  "extDescription": {
+    "message": "捕获、分析并导出浏览器 HTTP 请求，支持操作/API 映射和 Postman Collection。",
+    "description": "Extension description"
+  }
+}

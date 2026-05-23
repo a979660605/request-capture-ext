@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTTP Request Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 顶栏 -->
+    <div class="header">
+      <div class="header-left">
+        <img class="logo-img" src="icon16.png" alt="" />
+        <span class="title">HTTP Capture</span>
+      </div>
+      <div class="header-right">
+        <button class="lang-toggle" id="langToggle" title="Language">EN</button>
+        <span class="status-badge" id="statusBadge">已停止</span>
+      </div>
+    </div>
+
+    <!-- 工具栏 - 主操作行 -->
+    <div class="toolbar toolbar-main">
+      <button class="btn btn-primary" id="btnToggle">
+        <span class="btn-icon" id="toggleIcon">▶</span>
+        <span id="toggleText">启动</span>
+      </button>
+      <button class="btn btn-danger" id="btnClear">
+        <span class="btn-icon">🗑</span>
+        <span id="btnClearText">清空</span>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="btn btn-success" id="btnExport">
+        <span class="btn-icon">📥</span>
+        <span id="btnExportText">导出</span>
+      </button>
+      <select id="exportFormat" class="export-format-select">
+        <option value="postman">Postman</option>
+        <option value="har">HAR</option>
+        <option value="newman">Newman CI</option>
+      </select>
+      <button class="btn btn-danger btn-small" id="btnExportClear" title="Export all requests, then clear the list">
+        <span class="btn-icon">📥🗑</span>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="btn btn-filter" id="btnProxy" title="Configure proxy replay target">
+        <span class="btn-icon">⚙</span>
+        <span id="proxyText">代理</span>
+      </button>
+      <button class="btn btn-filter" id="btnPostman" title="Sync to Postman">
+        <span class="btn-icon">📬</span>
+        <span id="postmanText">Postman</span>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="btn btn-refresh" id="btnRefresh" title="Refresh the current page to trigger requests">
+        <span class="btn-icon">↻</span>
+      </button>
+      <span class="count-badge" id="countBadge">0 个请求</span>
+    </div>
+
+    <!-- 工具栏 - 筛选标签行 -->
+    <div class="toolbar toolbar-filters">
+      <button class="btn btn-filter" id="btnFilterStatic" title="Show or hide static resource requests">
+        <span class="btn-icon" id="filterIcon">■</span>
+        <span id="filterText">全部</span>
+      </button>
+      <button class="btn btn-filter" id="btnFilterTrigger" title="Show only requests linked to clicks">
+        <span class="btn-icon">🖱</span>
+        <span id="triggerFilterText">全部请求</span>
+      </button>
+      <button class="btn btn-filter" id="btnFilterError" title="Show only failed requests (4xx/5xx/errors)">
+        <span class="btn-icon">⚠</span>
+        <span id="errorFilterText">全部</span>
+      </button>
+      <button class="btn btn-filter" id="btnFilterSlow" title="Show only slow requests (>1s)">
+        <span class="btn-icon">🐢</span>
+        <span id="slowFilterText">全部</span>
+      </button>
+      <button class="btn btn-filter" id="btnFilterStarred" title="Show only starred requests">
+        <span class="btn-icon">⭐</span>
+        <span id="starFilterText">已标记</span>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="btn btn-filter" id="btnErrorOverview" title="Error overview">
+        <span class="btn-icon">📊</span>
+        <span id="errorOverviewText">错误</span>
+      </button>
+      <button class="btn btn-filter" id="btnCallChain" title="Operation/API mapping view">
+        <span class="btn-icon">⛓</span>
+        <span id="chainText">操作API</span>
+      </button>
+    </div>
+
+    <!-- 搜索栏 -->
+    <div class="search-bar">
+      <div class="search-bar-left">
+        <input type="search" id="searchInput" placeholder="Search URL, method, status..." />
+        <div class="domain-dropdown" id="domainDropdown">
+          <button class="domain-dropdown-btn" id="domainDropdownBtn" title="Filter by domain">
+            <span id="domainDropdownText">🌐 全部域名</span>
+            <span class="dropdown-arrow">▾</span>
+          </button>
+          <div class="domain-dropdown-menu" id="domainDropdownMenu" style="display:none;">
+            <div class="domain-dropdown-item active" data-domain="">🌐 全部域名</div>
+            <div class="domain-dropdown-divider"></div>
+            <div id="domainDropdownList"></div>
+          </div>
+        </div>
+      </div>
+      <div class="method-filters" id="methodFilters">
+        <button class="method-tag active" data-method="">全部</button>
+        <button class="method-tag" data-method="GET">GET</button>
+        <button class="method-tag" data-method="POST">POST</button>
+        <button class="method-tag" data-method="PUT">PUT</button>
+        <button class="method-tag" data-method="DELETE">DELETE</button>
+      </div>
+    </div>
+
+    <!-- 代理配置栏 -->
+    <div class="proxy-bar" id="proxyBar" style="display:none;">
+      <div class="proxy-row">
+        <span class="proxy-label">代理目标</span>
+        <input type="text" id="proxyTargetInput" placeholder="http://localhost:8081" />
+        <button class="btn btn-small btn-primary" id="btnSaveProxy">保存</button>
+      </div>
+      <div class="proxy-row">
+        <span class="proxy-label">路径重写</span>
+        <input type="text" id="proxyPathFrom" placeholder="/ams/plan" class="proxy-path-input" />
+        <span class="proxy-arrow">→</span>
+        <input type="text" id="proxyPathTo" placeholder="/ams" class="proxy-path-input" />
+        <span class="proxy-hint">将原路径前缀替换为目标前缀后转发</span>
+      </div>
+      <div class="proxy-row">
+        <span class="proxy-label">自定义Cookie</span>
+        <input type="text" id="proxyCustomCookie" placeholder="sessionId=abc123; token=dev_token" />
+        <span class="proxy-hint">转发时用此 Cookie 覆盖原始请求的 Cookie</span>
+      </div>
+    </div>
+
+    <!-- Postman 配置栏 -->
+    <div class="proxy-bar" id="postmanBar" style="display:none;">
+      <div class="proxy-row">
+        <span class="proxy-label">API Key</span>
+        <input type="password" id="postmanApiKey" placeholder="PMAK-xxxxxxxxxxxxxxxxxx" />
+        <button class="btn btn-small btn-primary" id="btnSyncPostman">同步到 Postman</button>
+      </div>
+      <div class="proxy-row">
+        <span class="proxy-label">Workspace</span>
+        <input type="text" id="postmanWorkspace" placeholder="workspace_id (optional)" class="proxy-path-input" />
+        <span class="proxy-hint">留空则同步到默认 Workspace</span>
+      </div>
+      <div class="proxy-row">
+        <span class="proxy-label">Collection</span>
+        <input type="text" id="postmanCollectionName" placeholder="HTTP Requests - 2026-05-15" />
+        <span class="proxy-hint">将在 Postman 中创建或更新的集合名称</span>
+      </div>
+    </div>
+
+    <!-- 展开/折叠 & 批量选择 -->
+    <div class="batch-bar" id="batchBar">
+      <label class="checkbox-label batch-checkbox-label" title="Select or deselect all">
+        <input type="checkbox" id="selectAll" />
+        <span>全选</span>
+      </label>
+      <span class="batch-selected-count" id="selectedCount">已选 0</span>
+      <button class="btn btn-small btn-success" id="btnExportSelected">导出选中</button>
+      <div class="toolbar-divider"></div>
+      <button class="btn btn-small btn-filter" id="btnExpandAll">展开全部</button>
+      <button class="btn btn-small btn-filter" id="btnCollapseAll">折叠全部</button>
+    </div>
+
+    <!-- 请求列表 -->
+    <div class="request-list" id="requestList">
+      <div class="empty-state">
+        <div class="empty-icon">📡</div>
+        <div class="empty-text">暂无捕获的请求</div>
+        <div class="empty-hint">点击「启动」后，操作页面或刷新以触发网络请求</div>
+      </div>
+    </div>
+
+    <!-- 底部抽屉详情面板 -->
+    <div class="detail-drawer" id="detailDrawer">
+      <div class="drawer-handle" id="drawerHandle">
+        <div class="drawer-handle-bar"></div>
+      </div>
+      <div class="drawer-content" id="drawerContent">
+        <div class="drawer-header">
+          <div class="drawer-title" id="drawerTitle">
+            <span class="method-badge method-GET" id="drawerMethodBadge" style="display:inline-block;width:auto;padding:2px 8px;">GET</span>
+            <span class="status-2xx" id="drawerStatus" style="font-weight:600;">200</span>
+          </div>
+          <div class="drawer-actions">
+            <button class="btn btn-small btn-primary" id="drawerCopyUrl">复制 URL</button>
+            <button class="btn btn-small btn-accent" id="drawerCopyCurl">cURL</button>
+            <button class="btn btn-small btn-warning" id="drawerSendLocal">发送到本地</button>
+            <button class="btn btn-small btn-success" id="drawerExportSingle">导出</button>
+            <button class="drawer-close" id="drawerClose">&times;</button>
+          </div>
+        </div>
+        <div class="drawer-tabs" id="drawerTabs">
+          <button class="drawer-tab active" data-tab="info">基本信息</button>
+          <button class="drawer-tab" data-tab="headers">请求头</button>
+          <button class="drawer-tab" data-tab="body">请求体</button>
+          <button class="drawer-tab" data-tab="response">响应头</button>
+          <button class="drawer-tab" data-tab="trigger">触发来源</button>
+        </div>
+        <div class="drawer-body" id="drawerBody">
+          <div class="drawer-section" id="drawerSectionInfo"></div>
+          <div class="drawer-section" id="drawerSectionHeaders" style="display:none;"></div>
+          <div class="drawer-section" id="drawerSectionBody" style="display:none;"></div>
+          <div class="drawer-section" id="drawerSectionResponse" style="display:none;"></div>
+          <div class="drawer-section" id="drawerSectionTrigger" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部统计 -->
+    <div class="footer">
+      <span id="footerInfo">等待启动...</span>
+      <span class="footer-hints">↑↓ 导航 · 关闭按钮收起详情</span>
+    </div>
+  </div>
+
+  <!-- 自定义确认对话框（增强版） -->
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-content">
+      <div class="confirm-title" id="confirmTitle">确认</div>
+      <div id="confirmStats" class="confirm-stats" style="display:none;"></div>
+      <div class="confirm-message" id="confirmMessage"></div>
+      <div class="confirm-options" id="confirmOptions" style="display:none;">
+        <label class="checkbox-label">
+          <input type="checkbox" id="confirmRemember" />
+          <span>不再提示</span>
+        </label>
+        <label class="checkbox-label" id="domainOptionRow" style="display:none;">
+          <input type="checkbox" id="confirmDomainOnly" />
+          <span>仅清空当前域名</span>
+        </label>
+      </div>
+      <div class="confirm-actions">
+        <button class="btn btn-small" id="confirmCancel">取消</button>
+        <button class="btn btn-small btn-danger" id="confirmOk">确定清空</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导出摘要弹窗 -->
+  <div class="export-modal" id="exportModal" style="display:none;">
+    <div class="export-modal-content">
+      <div class="export-modal-header">
+        <span>✅ 导出成功</span>
+        <button class="export-modal-close" id="exportModalClose">&times;</button>
+      </div>
+      <div class="export-modal-body" id="exportModalBody"></div>
+    </div>
+  </div>
+
+  <!-- 首次使用引导 -->
+  <div class="onboarding-overlay" id="onboardingOverlay" style="display:none;">
+    <div class="onboarding-card">
+      <div class="onboarding-icon">🚀</div>
+      <div class="onboarding-title">快速开始</div>
+      <div class="onboarding-steps">
+        <div class="onboarding-step">1. 点击「启动」开始捕获</div>
+        <div class="onboarding-step">2. 操作你的网页触发请求</div>
+        <div class="onboarding-step">3. 点击请求查看详情</div>
+      </div>
+      <div class="onboarding-tips">
+        <div class="onboarding-tip">💡 点击按钮会自动追踪触发来源</div>
+        <div class="onboarding-tip">💡 查询、编辑、保存等操作会自动归类对应请求</div>
+      </div>
+      <button class="btn btn-primary" id="onboardingStart">开始使用</button>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
