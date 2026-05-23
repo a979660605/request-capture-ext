@@ -56,10 +56,6 @@
 
 ## 安装
 
-### 从 Chrome Web Store（待上架）
-1. 访问 Chrome Web Store 页面
-2. 点击「添加到 Chrome」
-
 ### 开发者模式安装
 1. 克隆或下载本项目
 2. 打开 Chrome 浏览器，访问 `chrome://extensions/`
@@ -180,55 +176,3 @@ Main World (页面)           Isolated World (content.js)    Service Worker (bac
 - **Service Worker**：处理 `chrome.webRequest` 事件（onBeforeRequest、onBeforeSendHeaders、onHeadersReceived），合并主世界捕获的请求头和请求体信息
 - **端口通信**：通过 `chrome.runtime.connect` 建立长连接，实时推送新请求到弹出面板
 
-## 开发与测试
-
-### 运行测试
-
-测试使用 Playwright，需要在项目中安装依赖：
-
-```bash
-cd test
-npm install
-npx playwright install chromium
-node test-capture.mjs
-```
-
-测试覆盖：
-- fetch GET/POST 请求捕获
-- XHR GET/POST 请求捕获
-- 请求头捕获（包括自定义头）
-- 请求体捕获（JSON、表单数据）
-- URL 解析（相对路径 → 绝对路径）
-- 多请求并发捕获
-- 页面上下文追踪（页面标题和 URL）
-- SPA 导航上下文更新
-- 点击触发元素追踪
-- 调用链追踪字段验证
-
-### 构建说明
-
-本扩展为纯前端项目，无需构建步骤。加载 `manifest.json` 所在目录即可使用。
-
-## 权限说明
-
-| 权限 | 用途 |
-|------|------|
-| `webRequest` | 监听浏览器网络请求 |
-| `storage` | 持久化存储捕获的请求数据 |
-| `downloads` | 导出 Postman/HAR 文件 |
-| `alarms` | 定期清理过期数据 |
-| `cookies` | 读取 Cookie 信息辅助捕获 |
-| `scripting` | 将拦截脚本注入页面主世界，避免页面 CSP 阻止 fetch/XHR 捕获 |
-| `<all_urls>` | 捕获所有域名的请求 |
-| `host_permissions` | 所有 URL 的 webRequest 权限 |
-
-## 上架准备
-
-- 已使用 Chrome `_locales` 本地化扩展名称和描述
-- 弹窗支持中英文切换
-- 图标已提供 16/48/128 PNG 尺寸
-- 隐私说明见 `PRIVACY.md`
-
-## 许可证
-
-MIT
